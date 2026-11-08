@@ -12,10 +12,12 @@ public class MySQLTest {
     private static final String USER = EnvLoader.get("DB_USER");
     private static final String PASSWORD = EnvLoader.get("DB_PASS");
 
+    @SuppressWarnings("CallToPrintStackTrace")
     public static void main(String[] args) {
-        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT VERSION()")) {
+        try (Connection conn = DriverManager.getConnection(URL, USER, PASSWORD)) {
+            
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT VERSION()");
 
             if (rs.next()) {
                 System.out.println("Version: " + rs.getString(1));
