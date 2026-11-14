@@ -20,6 +20,9 @@ public class GradebookManager {
     private static final String USER = EnvLoader.get("DB_USER");
     private static final String PASSWORD = EnvLoader.get("DB_PASS");
 
+    private static final int mysqlerrorDuplicate = 1062;
+    private static final int mysqlerrorRecordDoesNotExist = 1452;
+
     private static boolean exit = false;
 
     /** The active class as {courseNum, term, sectionNum}, or null if none is selected. */
@@ -68,7 +71,7 @@ public class GradebookManager {
             pstmt.setString(4, desc);
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            if (e.getErrorCode() == 1062) {
+            if (e.getErrorCode() == mysqlerrorDuplicate) {
                 System.out.println("error: class " + course + " " + term + " section " + section + " already exists");
                 return;
             }
@@ -206,6 +209,170 @@ public class GradebookManager {
         }
     }
 
+    private static void addCategory(Connection conn, String name, double weight) throws SQLException {
+        if (!requireClass()) {
+            return;
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement(
+            "INSERT INTO Categories (courseNum, term, sectionNum, name, weight) VALUES (?, ?, ?, ?, ?)")) {
+            pstmt.setString(1, selectedClass[0]);
+            pstmt.setString(2, selectedClass[1]);
+            pstmt.setString(3, selectedClass[2]);
+            pstmt.setString(4, name);
+            pstmt.setDouble(5, weight);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == mysqlerrorDuplicate) {
+                System.out.println("error: class " + selectedClass[0] + " " + selectedClass[1] + " section " + 
+                selectedClass[2] + " already has a category with name " + name);
+                return;
+            }
+            throw e;
+        }
+        System.out.println("Added category " + name + " to class: " + selectedClass[0] + " " + selectedClass[1] + 
+        " section " + selectedClass[2]);
+    }
+
+    private static void addAssignment(Connection conn, String name, String category, double points, String desc) throws SQLException {
+        if (!requireClass()) {
+            return;
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement(
+            "INSERT INTO Assignment (courseNum, term, sectionNum, name, categoryName, description, pointVal) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            pstmt.setString(1, selectedClass[0]);
+            pstmt.setString(2, selectedClass[1]);
+            pstmt.setString(3, selectedClass[2]);
+            pstmt.setString(4, name);
+            pstmt.setString(5, category);
+            pstmt.setString(6, desc);
+            pstmt.setDouble(7, points);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == mysqlerrorDuplicate) {
+                System.out.println("error: category " + category + " already has an assignment with name " + name);
+                return;
+            }
+            throw e;
+        }
+        System.out.println("Added assignment " + name + " to category: " + category);
+    }
+
+    private static void addStudent(Connection conn, String username, int studentId, String last, String first) throws SQLException {
+        if (!requireClass()) {
+            return;
+        }
+        String sql = """
+            SELECT lastName, firstName
+            FROM Student
+            WHERE username = ?
+            """;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) { // Student exists
+                    String oldLast = rs.getString(1);
+                    String oldFirst = rs.getString(2);
+                    if (!oldLast.equals(last) || !oldFirst.equals(first)) { // Name has changed, update record
+                        System.out.println("Student name has changed. Updating record.");
+                        System.out.println("Previous Last Name: " + oldLast + ", previous First Name: " + oldFirst);
+                        updateStudentName(conn, studentId, last, first);
+                    }
+                } else { // Student doesn't exist, so create
+                    newStudent(conn, username, studentId, last, first);
+                }
+            }
+        }
+        addStudent(conn, username);
+        System.out.println("Added student " + username + " to class: " + selectedClass[0] + " " + selectedClass[1] + 
+        " section " + selectedClass[2]);
+    }
+
+    private static void addStudent(Connection conn, String username) throws SQLException {
+        if (!requireClass()) {
+            return;
+        }
+        int studentId = fetchStudentId(conn, username);
+        try (PreparedStatement pstmt = conn.prepareStatement(
+            "INSERT INTO Enrollments (studentId, courseNum, term, sectionNum) VALUES (?, ?, ?, ?)")) {
+            pstmt.setInt(1, studentId);
+            pstmt.setString(2, selectedClass[0]);
+            pstmt.setString(3, selectedClass[1]);
+            pstmt.setString(4, selectedClass[2]);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == mysqlerrorDuplicate) {
+                System.out.println("error: student with username " + username + " already in class " + 
+                selectedClass[0] + " " + selectedClass[1] + " section " + selectedClass[2]);
+                return;
+            } else if (e.getErrorCode() == mysqlerrorRecordDoesNotExist) {
+                System.out.println("error: student with username " + username + " does not exist");
+                return;
+            }
+            throw e;
+        }
+    }
+
+    private static void newStudent(Connection conn, String username, int studentId, String last, String first) throws SQLException {
+        try (PreparedStatement pstmt = conn.prepareStatement(
+            "INSERT INTO Student (studentId, username, lastName, firstName) VALUES (?, ?, ?, ?)")) {
+            pstmt.setInt(1, studentId);
+            pstmt.setString(2, username);
+            pstmt.setString(3, last);
+            pstmt.setString(4, first);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == mysqlerrorDuplicate) {
+                System.out.println("error: student with username " + username + " already exists");
+                return;
+            }
+            throw e;
+        }
+        System.out.println("Added student with username: " + username + ", student ID: " + studentId + 
+        ", last name: " + last + ", first name: " + first);
+    }
+
+    private static void updateStudentName(Connection conn, int studentId, String last, String first) throws SQLException {
+        String sql = """
+            UPDATE Student
+            SET lastname = ?, firstname = ?
+            WHERE studentId = ?;
+            """;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, last);
+            pstmt.setString(2, first);
+            pstmt.setInt(3, studentId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            if (e.getErrorCode() == mysqlerrorRecordDoesNotExist) {
+                System.out.println("error: student with studentId " + studentId + " does not exist");
+                return;
+            }
+            throw e;
+        }
+        System.out.println("Student name updated");
+        System.out.println("New Last Name: " + last + ", new First Name: " + first);
+    }
+
+    private static int fetchStudentId(Connection conn, String username) throws SQLException {
+        int studentId = -1;
+        String sql = """
+            SELECT studentId
+            FROM Student
+            WHERE username = ?
+            """;
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, username);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) { // Student exists, grab Id
+                    studentId = rs.getInt(1);
+                } else { // Student doesn't exist, return error message
+                    System.out.println("error: student with username " + username + " does not exist");
+                }
+            }
+        }
+        return studentId;
+    }
+
     // ------------------------------------------------------------------
     // Helpers: class scoping, table printing, argument checking
     // ------------------------------------------------------------------
@@ -229,9 +396,9 @@ public class GradebookManager {
      * @throws SQLException thrown if binding fails
      */
     private static void bindClass(PreparedStatement pstmt, int startIndex) throws SQLException {
-        pstmt.setString(startIndex, selectedClass[0]);
-        pstmt.setString(startIndex + 1, selectedClass[1]);
-        pstmt.setString(startIndex + 2, selectedClass[2]);
+        pstmt.setString(startIndex, selectedClass[0]); // CourseNum
+        pstmt.setString(startIndex + 1, selectedClass[1]); // Term
+        pstmt.setString(startIndex + 2, selectedClass[2]); // Section
     }
 
     /**
@@ -357,7 +524,29 @@ public class GradebookManager {
                     showClass(conn);
                 }
             }
-            case "show-categories", "add-category", "show-assignments", "add-assignment", "add-student", "show-students",
+            case "add-category" -> {
+                // TODO: Test this command
+                if (checkArgs(command, fullCommand, 2, 2)) {
+                    addCategory(conn, fullCommand[1], Double.parseDouble(fullCommand[2]));
+                }
+            }
+            case "add-assignment" -> {
+                // TODO:
+                if (checkArgs(command, fullCommand, 4, 4)) {
+                    addAssignment(conn, fullCommand[1], fullCommand[2], Double.parseDouble(fullCommand[3]), fullCommand[4]);
+                }
+            }
+            case "add-student" -> {
+                // TODO:
+                if (checkArgs(command, fullCommand, 1, 4)) {
+                    if (fullCommand.length == 1) {
+                        addStudent(conn, fullCommand[1]);
+                    } else {
+                        addStudent(conn, fullCommand[1], Integer.parseInt(fullCommand[2]), fullCommand[3], fullCommand[4]);
+                    }
+                }
+            }
+            case "show-categories", "show-assignments", "show-students",
                  "grade", "student-grades", "gradebook" -> notImplemented(command);
             case "help" -> {
                 if (checkArgs(command, fullCommand, 0, 1)) {
@@ -407,9 +596,9 @@ public class GradebookManager {
      */
     private static String describe(SQLException e) {
         return switch (e.getErrorCode()) {
-            case 1062 -> "that already exists";
+            case mysqlerrorDuplicate -> "that already exists";
             case 3819 -> "a value violates a constraint (check the numbers you gave)";
-            case 1452 -> "a referenced record does not exist";
+            case mysqlerrorRecordDoesNotExist -> "a referenced record does not exist";
             case 1406 -> "a value is too long";
             default -> e.getMessage();
         };
