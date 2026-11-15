@@ -209,6 +209,13 @@ public class GradebookManager {
         }
     }
 
+    /**
+     * Adds a new category of assignment to the currently selected class
+     * @param conn MySQL Database connection
+     * @param name Name of the assignment category
+     * @param weight Weight of assignment grades in this category
+     * @throws SQLException thrown if the query fails
+     */
     private static void addCategory(Connection conn, String name, double weight) throws SQLException {
         if (!requireClass()) {
             return;
@@ -233,6 +240,15 @@ public class GradebookManager {
         " " + selectedClass[2] + "\"");
     }
 
+    /**
+     * Adds an assignment to the currently selected class
+     * @param conn MySQL Database connection
+     * @param name Name of the assignment
+     * @param category Category of the assignment
+     * @param points How many points this assignment is worth
+     * @param desc Description of the assignment
+     * @throws SQLException thrown if the query fails
+     */
     private static void addAssignment(Connection conn, String name, String category, double points, String desc) throws SQLException {
         if (!requireClass()) {
             return;
@@ -257,6 +273,16 @@ public class GradebookManager {
         System.out.println("Added assignment \"" + name + "\" to category \"" + category + "\"");
     }
 
+    /**
+     * Adds a new student to the currently selected class. If the name of the student has changed from 
+     * what is on record, then the student's name is also updated.
+     * @param conn MySQL Database connection
+     * @param username Username of the student
+     * @param studentId Student ID of the student
+     * @param last Last name of the student
+     * @param first First name of the student
+     * @throws SQLException thrown if the query fails
+     */
     private static void addStudent(Connection conn, String username, int studentId, String last, String first) throws SQLException {
         if (!requireClass()) {
             return;
@@ -285,6 +311,12 @@ public class GradebookManager {
         addStudent(conn, username);
     }
 
+    /**
+     * Adds an existing student to the curently selected class.
+     * @param conn MySQL Databse connection
+     * @param username Username of the student
+     * @throws SQLException thrown if the query fails
+     */
     private static void addStudent(Connection conn, String username) throws SQLException {
         if (!requireClass()) {
             return;
@@ -315,6 +347,15 @@ public class GradebookManager {
         }
     }
 
+    /**
+     * Creates a new student
+     * @param conn MySQL Database connection
+     * @param username Username of the new student
+     * @param studentId Student ID of the new student
+     * @param last Last name of the new student
+     * @param first First name of the new student
+     * @throws SQLException thrown if the query fails
+     */
     private static void newStudent(Connection conn, String username, int studentId, String last, String first) throws SQLException {
         try (PreparedStatement pstmt = conn.prepareStatement(
             "INSERT INTO Student (studentId, username, lastName, firstName) VALUES (?, ?, ?, ?)")) {
@@ -332,6 +373,14 @@ public class GradebookManager {
         }
     }
 
+    /**
+     * Updates a student's name
+     * @param conn MySQL Database connection
+     * @param username Username of the student
+     * @param last Last name of the student
+     * @param first First name of the student
+     * @throws SQLException thrown if the query fails
+     */
     private static void updateStudentName(Connection conn, String username, String last, String first) throws SQLException {
         String sql = """
             UPDATE Student
@@ -353,6 +402,13 @@ public class GradebookManager {
         System.out.println("Updated (Last, First): \"" + last + ", " + first + "\"");
     }
 
+    /**
+     * Given a student's username, returns their student ID
+     * @param conn MySQL Database connection
+     * @param username The student's username
+     * @return The student's Student ID
+     * @throws SQLException thrown if the query fails
+     */
     private static int fetchStudentId(Connection conn, String username) throws SQLException {
         int studentId = -1;
         String sql = """
@@ -525,19 +581,16 @@ public class GradebookManager {
                 }
             }
             case "add-category" -> {
-                // TODO: Test this command
                 if (checkArgs(command, fullCommand, 2, 2)) {
                     addCategory(conn, fullCommand[1], Double.parseDouble(fullCommand[2]));
                 }
             }
             case "add-assignment" -> {
-                // TODO:
                 if (checkArgs(command, fullCommand, 4, 4)) {
                     addAssignment(conn, fullCommand[1], fullCommand[2], Double.parseDouble(fullCommand[3]), fullCommand[4]);
                 }
             }
             case "add-student" -> {
-                // TODO:
                 if (fullCommand.length == 2) {
                     if (checkArgs(command, fullCommand, 1, 1)) {
                         addStudent(conn, fullCommand[1]);
