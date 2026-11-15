@@ -3,6 +3,19 @@
 - Jordan Clifton
 - Aaron Eagleton
 
+## Compiling and Running
+### This is a Maven project and will require maven to compile
+
+To compile the code package run
+```
+mvn package
+```
+
+Then to run the compiled package run
+```
+java -jar target/gradebook-1.0-SNAPSHOT.jar
+```
+
 ## AI Disclaimer:
 Generative AI was used in this project.
 
@@ -15,10 +28,10 @@ primary/foreign key relationships, and application logic were reviewed, verified
 and refined by us.
 
 ### Milestone 2 Usage
-- Generative AI (Google Gemini - Jordan) was used to create the EnvLoader class. This was
-deemed acceptable as the class has nothing to do with the content of the project
-(databases) and is only used to load private .env variables in order to protect 
-our public github repo from potential abuse.
+- Generative AI (Google Gemini - Jordan) was used to create the EnvLoader class. I felt this
+  acceptable as the class has nothing to do with the content of the project
+  (databases) and is only used to load private .env variables in order to protect 
+  our public github repo from potential abuse.
 
 - Generative AI (Claude - Aaron) was used to help diagnose and fix a problem found in
   milestone 1 schema. It found 3 things, which were loose CHECK constraints,
@@ -26,3 +39,8 @@ our public github repo from potential abuse.
   computing total grade. I also used it to help framework/scaffold for listClasses,
   the error handling loops in main per command, and it wrote the formatting for printTable
   as I did not want to manually format it. 
+
+- Generative AI (Kiro - Jordan) was used to convert our standalone java project to use Maven.
+  I was specific with my prompt in that I did not want to it to change any of our java code 
+  and that I only wanted it to convert the project to Maven. I worked around with it until I 
+  was happy with how the Maven setup was done.

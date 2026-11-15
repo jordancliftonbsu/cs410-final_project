@@ -1,0 +1,4 @@
+# Copy this file to config.properties and fill in your values.
+DB_URL=jdbc:mysql://127.0.0.1:3306/<database name>?useSSL=false&allowPublicKeyRetrieval=true
+DB_USER=
+DB_PASS=

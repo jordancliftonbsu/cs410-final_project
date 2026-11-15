@@ -5,10 +5,10 @@ import java.sql.Statement;
 
 public class MySQLTest {
     static {
-        EnvLoader.loadEnv(".env");
+        EnvLoader.loadEnv("config.properties");
     }
 
-    private static final String URL = "jdbc:mysql://127.0.0.1:3306/" + EnvLoader.get("DB_NAME") + "?useSSL=false&allowPublicKeyRetrieval=true";
+    private static final String URL = EnvLoader.get("DB_URL");
     private static final String USER = EnvLoader.get("DB_USER");
     private static final String PASSWORD = EnvLoader.get("DB_PASS");
 
