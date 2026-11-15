@@ -40,7 +40,7 @@ public class GradebookManager {
         USAGE.put("show-assignments", "show-assignments");
         USAGE.put("add-assignment", "add-assignment <name> <category> <points> \"<description>\"");
         USAGE.put("add-student", "add-student <username> <student-id> <last> <first>   (new student)\n"
-                               + "           add-student <username>                              (existing student)");
+                               + "add-student <username>                               (existing student)");
         USAGE.put("show-students", "show-students [<string>]");
         USAGE.put("grade", "grade <assignment> <username> <points>");
         USAGE.put("student-grades", "student-grades <username>");
@@ -72,12 +72,12 @@ public class GradebookManager {
             pstmt.executeUpdate();
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorDuplicate) {
-                System.out.println("error: class " + course + " " + term + " section " + section + " already exists");
+                System.out.println("error: class \"" + course + " " + term + " " + section + "\" already exists");
                 return;
             }
             throw e;
         }
-        System.out.println("Added class " + course + " " + term + " section " + section + " (" + desc + ")");
+        System.out.println("Added class " + course + " " + term + " " + section + " \"" + desc + "\"");
     }
 
     /**
@@ -223,14 +223,14 @@ public class GradebookManager {
             pstmt.executeUpdate();
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorDuplicate) {
-                System.out.println("error: class " + selectedClass[0] + " " + selectedClass[1] + " section " + 
-                selectedClass[2] + " already has a category with name " + name);
+                System.out.println("error: class \"" + selectedClass[0] + " " + selectedClass[1] + " " + 
+                selectedClass[2] + "\" already has a category with name \"" + name + "\"");
                 return;
             }
             throw e;
         }
-        System.out.println("Added category " + name + " to class: " + selectedClass[0] + " " + selectedClass[1] + 
-        " section " + selectedClass[2]);
+        System.out.println("Added category \"" + name + "\" to class: \"" + selectedClass[0] + " " + selectedClass[1] + 
+        " " + selectedClass[2] + "\"");
     }
 
     private static void addAssignment(Connection conn, String name, String category, double points, String desc) throws SQLException {
@@ -249,12 +249,12 @@ public class GradebookManager {
             pstmt.executeUpdate();
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorDuplicate) {
-                System.out.println("error: category " + category + " already has an assignment with name " + name);
+                System.out.println("error: category \"" + category + "\" already has an assignment with name \"" + name + "\"");
                 return;
             }
             throw e;
         }
-        System.out.println("Added assignment " + name + " to category: " + category);
+        System.out.println("Added assignment \"" + name + "\" to category \"" + category + "\"");
     }
 
     private static void addStudent(Connection conn, String username, int studentId, String last, String first) throws SQLException {
@@ -273,9 +273,9 @@ public class GradebookManager {
                     String oldLast = rs.getString(1);
                     String oldFirst = rs.getString(2);
                     if (!oldLast.equals(last) || !oldFirst.equals(first)) { // Name has changed, update record
-                        System.out.println("Student name has changed. Updating record.");
-                        System.out.println("Previous Last Name: " + oldLast + ", previous First Name: " + oldFirst);
-                        updateStudentName(conn, studentId, last, first);
+                        System.out.println("Student name has changed... updating record");
+                        System.out.println("Previous (Last, First): \"" + oldLast + ", " + oldFirst + "\"");
+                        updateStudentName(conn, username, last, first);
                     }
                 } else { // Student doesn't exist, so create
                     newStudent(conn, username, studentId, last, first);
@@ -283,8 +283,6 @@ public class GradebookManager {
             }
         }
         addStudent(conn, username);
-        System.out.println("Added student " + username + " to class: " + selectedClass[0] + " " + selectedClass[1] + 
-        " section " + selectedClass[2]);
     }
 
     private static void addStudent(Connection conn, String username) throws SQLException {
@@ -292,6 +290,9 @@ public class GradebookManager {
             return;
         }
         int studentId = fetchStudentId(conn, username);
+        if (studentId == -1) {
+            return;
+        }
         try (PreparedStatement pstmt = conn.prepareStatement(
             "INSERT INTO Enrollments (studentId, courseNum, term, sectionNum) VALUES (?, ?, ?, ?)")) {
             pstmt.setInt(1, studentId);
@@ -299,13 +300,15 @@ public class GradebookManager {
             pstmt.setString(3, selectedClass[1]);
             pstmt.setString(4, selectedClass[2]);
             pstmt.executeUpdate();
+            System.out.println("Student with username \"" + username + "\" added to class: \"" + selectedClass[0] + " " + selectedClass[1] + 
+            " section " + selectedClass[2] + "\"");
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorDuplicate) {
-                System.out.println("error: student with username " + username + " already in class " + 
-                selectedClass[0] + " " + selectedClass[1] + " section " + selectedClass[2]);
+                System.out.println("error: student with username \"" + username + "\" already in class \"" + 
+                selectedClass[0] + " " + selectedClass[1] + " " + selectedClass[2] + "\"");
                 return;
             } else if (e.getErrorCode() == mysqlerrorRecordDoesNotExist) {
-                System.out.println("error: student with username " + username + " does not exist");
+                System.out.println("error: student with username \"" + username + "\" does not exist");
                 return;
             }
             throw e;
@@ -322,35 +325,32 @@ public class GradebookManager {
             pstmt.executeUpdate();
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorDuplicate) {
-                System.out.println("error: student with username " + username + " already exists");
+                System.out.println("error: student with username \"" + username + "\" already exists");
                 return;
             }
             throw e;
         }
-        System.out.println("Added student with username: " + username + ", student ID: " + studentId + 
-        ", last name: " + last + ", first name: " + first);
     }
 
-    private static void updateStudentName(Connection conn, int studentId, String last, String first) throws SQLException {
+    private static void updateStudentName(Connection conn, String username, String last, String first) throws SQLException {
         String sql = """
             UPDATE Student
             SET lastname = ?, firstname = ?
-            WHERE studentId = ?;
+            WHERE username = ?;
             """;
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, last);
             pstmt.setString(2, first);
-            pstmt.setInt(3, studentId);
+            pstmt.setString(3, username);
             pstmt.executeUpdate();
         } catch (SQLException e) {
             if (e.getErrorCode() == mysqlerrorRecordDoesNotExist) {
-                System.out.println("error: student with studentId " + studentId + " does not exist");
+                System.out.println("error: student with username \"" + username + "\" does not exist");
                 return;
             }
             throw e;
         }
-        System.out.println("Student name updated");
-        System.out.println("New Last Name: " + last + ", new First Name: " + first);
+        System.out.println("Updated (Last, First): \"" + last + ", " + first + "\"");
     }
 
     private static int fetchStudentId(Connection conn, String username) throws SQLException {
@@ -366,7 +366,7 @@ public class GradebookManager {
                 if (rs.next()) { // Student exists, grab Id
                     studentId = rs.getInt(1);
                 } else { // Student doesn't exist, return error message
-                    System.out.println("error: student with username " + username + " does not exist");
+                    System.out.println("error: student with username \"" + username + "\" does not exist");
                 }
             }
         }
@@ -538,10 +538,12 @@ public class GradebookManager {
             }
             case "add-student" -> {
                 // TODO:
-                if (checkArgs(command, fullCommand, 1, 4)) {
-                    if (fullCommand.length == 1) {
+                if (fullCommand.length == 2) {
+                    if (checkArgs(command, fullCommand, 1, 1)) {
                         addStudent(conn, fullCommand[1]);
-                    } else {
+                    }
+                } else {
+                    if (checkArgs(command, fullCommand, 4, 4)) {
                         addStudent(conn, fullCommand[1], Integer.parseInt(fullCommand[2]), fullCommand[3], fullCommand[4]);
                     }
                 }
